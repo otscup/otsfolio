@@ -661,6 +661,12 @@ export default function AdminPanel() {
   const [aiModelsLoading, setAiModelsLoading] = useState(false);
   const [aiModelsError, setAiModelsError] = useState('');
 
+  /* ---------- MCP API Key 管理 ---------- */
+  const [mcpKeyName, setMcpKeyName] = useState('');
+  const [mcpNewKey, setMcpNewKey] = useState<string | null>(null);
+  const [mcpMsg, setMcpMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const mcpKeys = state.settings.mcpKeys || [];
+
   async function fetchAiModels() {
     setAiModelsLoading(true);
     setAiModelsError('');
@@ -1053,14 +1059,19 @@ export default function AdminPanel() {
     }
     try {
       const hash = await hashPass(newPass);
-      // 口令改动立即落盘，避免忘记点保存导致状态不一致
       const next = { ...state, settings: { ...state.settings, adminPassHash: hash } };
       setState(next);
       saveSite(next);
       savedRef.current = JSON.stringify(next);
+      // 立即同步到云端 D1（旧代码漏了这一步，导致刷新/换设备后旧密码生效）
+      pushToCloud(next, hash).then((ok) => {
+        setPassMsg({
+          kind: ok ? 'ok' : 'ok',
+          text: ok ? '口令已更新并同步到云端' : '口令已更新（本地已保存，云端同步失败，请稍后点保存重试）',
+        });
+      });
       setNewPass('');
       setNewPass2('');
-      setPassMsg({ kind: 'ok', text: '口令已更新并保存' });
     } catch (e) {
       setPassMsg({ kind: 'err', text: e instanceof Error ? e.message : '更新失败' });
     }
@@ -1795,6 +1806,143 @@ export default function AdminPanel() {
                 说明：本地阶段口令校验在浏览器完成，可防止随手改动，但技术上可绕过。
                 部署到 Cloudflare 后将改由服务端校验，那时前端绕过也无法写入数据。
               </p>
+            </section>
+
+            {/* MCP API Key 管理 */}
+            <section className="cyber-card p-5">
+              <h2 className="section-label">MCP API Key 管理</h2>
+              <p className="mb-4 font-body text-sm text-muted">
+                为每个客户端生成独立 API Key，用于连接 MCP 服务端（<code className="font-mono text-cyan">https://www.otscup.com/api/mcp</code>）。
+                每个 key 可独立吊销，互不影响。
+              </p>
+
+              {/* 创建新 Key */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="lg:col-span-2">
+                  <label
+                    htmlFor="mcp-key-name"
+                    className="mb-1.5 block font-mono text-xs tracking-wider text-muted"
+                  >
+                    客户端名称（如：Cursor、Claude Desktop）
+                  </label>
+                  <input
+                    id="mcp-key-name"
+                    type="text"
+                    placeholder="例如：我的 Cursor"
+                    value={mcpKeyName}
+                    onChange={(e) => setMcpKeyName(e.target.value)}
+                    className="w-full border border-line bg-void/60 px-3 py-2 text-slate-100 transition-all focus:border-cyan focus:shadow-neon focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!mcpKeyName.trim()) {
+                        setMcpMsg({ kind: 'err', text: '请先填写客户端名称' });
+                        return;
+                      }
+                      const key = 'mcp_' + Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+                      const newKeyEntry = {
+                        id: `k_${Date.now()}`,
+                        name: mcpKeyName.trim(),
+                        key,
+                        createdAt: Date.now(),
+                      };
+                      const updated = [...mcpKeys, newKeyEntry];
+                      setState({ ...state, settings: { ...state.settings, mcpKeys: updated } });
+                      pushToCloud(state, state.settings.adminPassHash || '').then((ok) => {
+                        setMcpMsg({
+                          kind: 'ok',
+                          text: ok ? 'Key 已创建并同步到云端' : 'Key 已创建（本地已保存，云端同步失败）',
+                        });
+                      });
+                      setMcpNewKey(key);
+                      setMcpKeyName('');
+                    }}
+                    className="btn-neon w-full"
+                  >
+                    生成新 Key
+                  </button>
+                </div>
+              </div>
+
+              {/* 新生成的 Key 展示 */}
+              {mcpNewKey && (
+                <div className="mt-4 border border-lime/50 bg-lime/10 p-4">
+                  <p className="mb-2 font-mono text-xs text-lime">✓ 新 Key 已生成，请立即复制保存（关闭后将无法再查看完整 key）：</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 break-all border border-line bg-void/80 p-2 font-mono text-xs text-slate-100">
+                      {mcpNewKey}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(mcpNewKey!); setMcpMsg({ kind: 'ok', text: '已复制到剪贴板' }); }}
+                      className="border border-lime/50 px-3 py-1 font-mono text-xs text-lime transition-colors hover:bg-lime/20"
+                    >
+                      复制
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMcpNewKey(null)}
+                      className="border border-line px-3 py-1 font-mono text-xs text-muted transition-colors hover:border-cyan"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                  <p className="mt-2 font-mono text-[10px] text-muted">
+                    配置到客户端：headers 设置 <code className="text-cyan">x-mcp-key: {mcpNewKey.slice(0, 12)}...</code>
+                  </p>
+                </div>
+              )}
+
+              {/* 现有 Key 列表 */}
+              {mcpKeys.length > 0 && (
+                <div className="mt-4 border-t border-line pt-4">
+                  <p className="mb-2 font-mono text-xs text-muted">已创建的 Key（{mcpKeys.length} 个）：</p>
+                  <div className="space-y-2">
+                    {mcpKeys.map((k) => (
+                      <div key={k.id} className="flex items-center justify-between border border-line bg-void/40 px-3 py-2">
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono text-xs text-slate-100">{k.name}</span>
+                          <code className="font-mono text-[10px] text-muted">{k.key.slice(0, 12)}...</code>
+                          <span className="font-mono text-[10px] text-line">
+                            {new Date(k.createdAt).toLocaleDateString('zh-CN')}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!window.confirm(`确认删除「${k.name}」的 Key？该客户端将无法再写入。`)) return;
+                            const updated = mcpKeys.filter((x) => x.id !== k.id);
+                            setState({ ...state, settings: { ...state.settings, mcpKeys: updated } });
+                            pushToCloud(state, state.settings.adminPassHash || '').then(() => {
+                              setMcpMsg({ kind: 'ok', text: `已删除「${k.name}」的 Key` });
+                            });
+                          }}
+                          className="border border-magenta/50 px-2 py-1 font-mono text-[10px] text-magenta transition-colors hover:bg-magenta/10"
+                        >
+                          删除
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {mcpMsg && (
+                <p
+                  role="alert"
+                  className={
+                    mcpMsg.kind === 'ok'
+                      ? 'mt-3 font-mono text-xs text-lime'
+                      : 'mt-3 font-mono text-xs text-magenta'
+                  }
+                >
+                  {mcpMsg.kind === 'ok' ? '✓ ' : '⚠ '}
+                  {mcpMsg.text}
+                </p>
+              )}
             </section>
           </div>
         )}

@@ -88,7 +88,7 @@ const TOOLS = [
   },
 ];
 
-// ---------- 鉴权：从 D1 settings 读取 adminPassHash 比对 ----------
+// ---------- 鉴权：mcp-key 优先，admin-hash 兜底 ----------
 async function getSiteData(env: Env): Promise<any> {
   const r = await env.portfolio_content
     .prepare('SELECT data FROM site WHERE id = ?')
@@ -97,13 +97,25 @@ async function getSiteData(env: Env): Promise<any> {
   return r?.data ? JSON.parse(r.data) : null;
 }
 
-async function authOk(request: Request, env: Env): Promise<boolean> {
-  const hash = request.headers.get('x-admin-hash');
-  if (!hash) return false;
+/** 校验写操作鉴权。返回 'yes' | 'no-auth' | 'bad-key'。
+ *  优先级：x-mcp-key（独立 API key） > x-admin-hash（后台密码） */
+async function authOk(request: Request, env: Env): Promise<'yes' | 'no-auth' | 'bad-key'> {
   const data = await getSiteData(env);
-  const stored = data?.settings?.adminPassHash;
-  if (!stored) return false;
-  return stored === hash;
+  const settings = data?.settings || {};
+
+  // 1. 优先用独立 MCP key
+  const mcpKey = request.headers.get('x-mcp-key');
+  if (mcpKey) {
+    const keys: any[] = settings.mcpKeys || [];
+    if (keys.some((k) => k.key === mcpKey)) return 'yes';
+    return 'bad-key'; // 带 mcp-key 但不匹配 → 不 fallback
+  }
+
+  // 2. fallback: admin-hash
+  const hash = request.headers.get('x-admin-hash');
+  if (!hash) return 'no-auth';
+  const stored = settings.adminPassHash;
+  return !!stored && stored === hash ? 'yes' : 'no-auth';
 }
 
 // ---------- 写操作：更新 D1 ----------
@@ -121,8 +133,11 @@ async function executeTool(
   name: string,
   args: any,
   env: Env,
-  authed: boolean,
+  authed: 'yes' | 'no-auth' | 'bad-key',
 ): Promise<{ content: { type: string; text: string }[]; isError?: boolean }> {
+  const authErr = authed === 'bad-key'
+    ? '鉴权失败：x-mcp-key 无效（该 key 已被吊销或不存在）'
+    : '未授权：缺少有效的 x-mcp-key 或 x-admin-hash';
   try {
     switch (name) {
       case 'list_posts': {
@@ -146,7 +161,7 @@ async function executeTool(
       }
 
       case 'create_post': {
-        if (!authed) return { content: [{ type: 'text', text: '未授权：缺少 x-admin-hash' }], isError: true };
+        if (authed !== 'yes') return { content: [{ type: 'text', text: authErr }], isError: true };
         if (!args.title || !args.slug || !args.body) {
           return { content: [{ type: 'text', text: '缺少必填字段 title/slug/body' }], isError: true };
         }
@@ -168,7 +183,7 @@ async function executeTool(
       }
 
       case 'update_post': {
-        if (!authed) return { content: [{ type: 'text', text: '未授权：缺少 x-admin-hash' }], isError: true };
+        if (authed !== 'yes') return { content: [{ type: 'text', text: authErr }], isError: true };
         if (!args.slug) return { content: [{ type: 'text', text: '缺少 slug' }], isError: true };
         const data = await getSiteData(env);
         if (!data) return { content: [{ type: 'text', text: '站点无数据' }], isError: true };
@@ -181,7 +196,7 @@ async function executeTool(
       }
 
       case 'delete_post': {
-        if (!authed) return { content: [{ type: 'text', text: '未授权：缺少 x-admin-hash' }], isError: true };
+        if (authed !== 'yes') return { content: [{ type: 'text', text: authErr }], isError: true };
         if (!args.slug && !args.id) return { content: [{ type: 'text', text: '需要 slug 或 id' }], isError: true };
         const data = await getSiteData(env);
         if (!data) return { content: [{ type: 'text', text: '站点无数据' }], isError: true };
@@ -230,7 +245,7 @@ function rpcError(id: any, code: number, message: string, data?: any) {
   return { jsonrpc: '2.0', id, error: { code, message, data } };
 }
 
-async function handleRpcRequest(req: any, env: Env, authed: boolean): Promise<any> {
+async function handleRpcRequest(req: any, env: Env, authed: 'yes' | 'no-auth' | 'bad-key'): Promise<any> {
   const { id, method, params } = req;
 
   switch (method) {
@@ -268,7 +283,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   const headers = {
     'access-control-allow-origin': '*',
     'access-control-allow-methods': 'POST, OPTIONS',
-    'access-control-allow-headers': 'content-type, x-admin-hash',
+    'access-control-allow-headers': 'content-type, x-admin-hash, x-mcp-key',
   };
 
   // CORS preflight

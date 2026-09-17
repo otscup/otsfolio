@@ -162,6 +162,11 @@ export type Settings = {
    * Telegram Chat ID 列表。多个时逐个推送（新评论通知与发文推送共用）。
    */
   tgChatIds?: string[];
+  /**
+   * MCP API Key 列表。每个客户端一个独立 key，用于 /api/mcp 写操作鉴权。
+   * key 格式: mcp_ + 32 位十六进制。
+   */
+  mcpKeys?: { id: string; name: string; key: string; createdAt: number; lastUsed?: number }[];
 };
 
 export type Contact = {
