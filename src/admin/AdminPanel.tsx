@@ -1058,16 +1058,19 @@ export default function AdminPanel() {
       return;
     }
     try {
+      const oldHash = state.settings.adminPassHash || ''; // 旧 hash（云端还认这个）
       const hash = await hashPass(newPass);
       const next = { ...state, settings: { ...state.settings, adminPassHash: hash } };
       setState(next);
       saveSite(next);
       savedRef.current = JSON.stringify(next);
-      // 立即同步到云端 D1（旧代码漏了这一步，导致刷新/换设备后旧密码生效）
-      pushToCloud(next, hash).then((ok) => {
+      // 立即同步到云端 D1。鉴权用旧 hash（云端还认旧 hash，新 hash 鉴权会 401）。
+      pushToCloud(next, oldHash).then((ok) => {
         setPassMsg({
-          kind: ok ? 'ok' : 'ok',
-          text: ok ? '口令已更新并同步到云端' : '口令已更新（本地已保存，云端同步失败，请稍后点保存重试）',
+          kind: ok ? 'ok' : 'err',
+          text: ok
+            ? '口令已更新并同步到云端'
+            : '⚠ 云端同步失败（D1 仍为旧密码）。请点右上角「保存」重试，或检查网络。',
         });
       });
       setNewPass('');
@@ -1879,10 +1882,21 @@ export default function AdminPanel() {
                     </code>
                     <button
                       type="button"
-                      onClick={() => { navigator.clipboard.writeText(mcpNewKey!); setMcpMsg({ kind: 'ok', text: '已复制到剪贴板' }); }}
+                      onClick={() => { navigator.clipboard.writeText(mcpNewKey!); setMcpMsg({ kind: 'ok', text: 'Key 已复制到剪贴板' }); }}
                       className="border border-lime/50 px-3 py-1 font-mono text-xs text-lime transition-colors hover:bg-lime/20"
                     >
-                      复制
+                      复制 Key
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cfg = JSON.stringify({ mcpServers: { "otscup-site": { url: 'https://www.otscup.com/api/mcp', headers: { "x-mcp-key": mcpNewKey! } } } }, null, 2);
+                        navigator.clipboard.writeText(cfg);
+                        setMcpMsg({ kind: 'ok', text: 'MCP 配置已复制，粘贴到客户端配置文件即可' });
+                      }}
+                      className="border border-lime/50 px-3 py-1 font-mono text-xs text-lime transition-colors hover:bg-lime/20"
+                    >
+                      复制 MCP 配置
                     </button>
                     <button
                       type="button"
@@ -1892,9 +1906,6 @@ export default function AdminPanel() {
                       关闭
                     </button>
                   </div>
-                  <p className="mt-2 font-mono text-[10px] text-muted">
-                    配置到客户端：headers 设置 <code className="text-cyan">x-mcp-key: {mcpNewKey.slice(0, 12)}...</code>
-                  </p>
                 </div>
               )}
 
@@ -1904,30 +1915,52 @@ export default function AdminPanel() {
                   <p className="mb-2 font-mono text-xs text-muted">已创建的 Key（{mcpKeys.length} 个）：</p>
                   <div className="space-y-2">
                     {mcpKeys.map((k) => (
-                      <div key={k.id} className="flex items-center justify-between border border-line bg-void/40 px-3 py-2">
-                        <div className="flex items-center gap-3">
-                          <span className="font-mono text-xs text-slate-100">{k.name}</span>
-                          <code className="font-mono text-[10px] text-muted">{k.key.slice(0, 12)}...</code>
-                          <span className="font-mono text-[10px] text-line">
-                            {new Date(k.createdAt).toLocaleDateString('zh-CN')}
-                          </span>
+                      <div key={k.id} className="border border-line bg-void/40 px-3 py-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className="font-mono text-xs text-slate-100">{k.name}</span>
+                            <code className="font-mono text-[10px] text-muted">{k.key.slice(0, 12)}...</code>
+                            <span className="font-mono text-[10px] text-line">
+                              {new Date(k.createdAt).toLocaleDateString('zh-CN')}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!window.confirm(`确认删除「${k.name}」的 Key？该客户端将无法再写入。`)) return;
+                              const updated = mcpKeys.filter((x) => x.id !== k.id);
+                              const nextState = { ...state, settings: { ...state.settings, mcpKeys: updated } };
+                              setState(nextState);
+                              saveSite(nextState);
+                              pushToCloud(nextState, state.settings.adminPassHash || '').then(() => {
+                                setMcpMsg({ kind: 'ok', text: `已删除「${k.name}」的 Key` });
+                              });
+                            }}
+                            className="border border-magenta/50 px-2 py-1 font-mono text-[10px] text-magenta transition-colors hover:bg-magenta/10"
+                          >
+                            删除
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (!window.confirm(`确认删除「${k.name}」的 Key？该客户端将无法再写入。`)) return;
-                            const updated = mcpKeys.filter((x) => x.id !== k.id);
-                            const nextState = { ...state, settings: { ...state.settings, mcpKeys: updated } };
-                            setState(nextState);
-                            saveSite(nextState);
-                            pushToCloud(nextState, state.settings.adminPassHash || '').then(() => {
-                              setMcpMsg({ kind: 'ok', text: `已删除「${k.name}」的 Key` });
-                            });
-                          }}
-                          className="border border-magenta/50 px-2 py-1 font-mono text-[10px] text-magenta transition-colors hover:bg-magenta/10"
-                        >
-                          删除
-                        </button>
+                        <div className="mt-2 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { navigator.clipboard.writeText(k.key); setMcpMsg({ kind: 'ok', text: `「${k.name}」的 Key 已复制` }); }}
+                            className="border border-line px-2 py-1 font-mono text-[10px] text-muted transition-colors hover:border-cyan hover:text-cyan"
+                          >
+                            复制 Key
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const cfg = JSON.stringify({ mcpServers: { "otscup-site": { url: 'https://www.otscup.com/api/mcp', headers: { "x-mcp-key": k.key } } } }, null, 2);
+                              navigator.clipboard.writeText(cfg);
+                              setMcpMsg({ kind: 'ok', text: `「${k.name}」的 MCP 配置已复制` });
+                            }}
+                            className="border border-line px-2 py-1 font-mono text-[10px] text-muted transition-colors hover:border-cyan hover:text-cyan"
+                          >
+                            复制 MCP 配置
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
