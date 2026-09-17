@@ -6,6 +6,7 @@ import Projects from './Projects';
 import Timeline from './Timeline';
 import Skills from './Skills';
 import Contact from './Contact';
+import LatestPosts from './LatestPosts';
 import MatrixRain from './MatrixRain';
 import CursorGlow from './CursorGlow';
 import ScrollProgress from './ScrollProgress';
@@ -58,6 +59,9 @@ export default function SiteView() {
           <Skills />
         </Reveal>
         <Reveal>
+          <LatestPosts />
+        </Reveal>
+        <Reveal>
           <Contact />
         </Reveal>
       </main>
@@ -70,7 +74,7 @@ export default function SiteView() {
         </p>
         <div className="mt-3 flex items-center justify-center gap-4">
           <a
-            href="https://github.com/Vincent-Pivar/otsfolio"
+            href="https://github.com/otscup/otsfolio"
             target="_blank"
             rel="noreferrer"
             className="text-muted transition-colors hover:text-cyan"

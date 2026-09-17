@@ -233,6 +233,7 @@ const TABS: { key: TabKey; label: string }[] = [
 
 /* ---------- 趋势折线图（SVG 手绘，无依赖） ---------- */
 function TrendChart({ daily, range }: { daily: { day: string; views: number; uv: number }[]; range: 7 | 30 }) {
+  const [hover, setHover] = useState<number | null>(null);
   const W = 560;
   const H = 200;
   const padL = 36;
@@ -244,24 +245,33 @@ function TrendChart({ daily, range }: { daily: { day: string; views: number; uv:
 
   const days = Math.min(range, daily.length);
   const series = daily.slice(0, days).reverse(); // 按时间正序
-  const maxV = Math.max(1, ...series.map((d) => d.views));
-  const maxUv = Math.max(1, ...series.map((d) => d.uv));
+  // 两条线共用同一 Y 轴，否则各自按自身峰值归一化会让数值不可比，
+  // 视觉上出现「真实人数线高于总访问线」的错觉（实则 uv ≤ views 恒成立）。
+  const maxAll = Math.max(1, ...series.map((d) => d.views), ...series.map((d) => d.uv));
 
   const x = (i: number) => padL + (series.length <= 1 ? plotW / 2 : (i / (series.length - 1)) * plotW);
-  const yV = (v: number) => padT + plotH - (v / maxV) * plotH;
-  const yUv = (v: number) => padT + plotH - (v / maxUv) * plotH;
+  const yV = (v: number) => padT + plotH - (v / maxAll) * plotH;
+  const yUv = (v: number) => padT + plotH - (v / maxAll) * plotH;
 
   const line = (key: 'views' | 'uv', yfn: (v: number) => number) =>
     series.map((d, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${yfn(d[key]).toFixed(1)}`).join(' ');
   const area = (yfn: (v: number) => number) =>
     `${line('views', yfn)} L ${x(series.length - 1).toFixed(1)} ${(padT + plotH).toFixed(1)} L ${x(0).toFixed(1)} ${(padT + plotH).toFixed(1)} Z`;
 
-  const yTicks = [0, 0.5, 1].map((f) => Math.round(maxV * f));
+  const yTicks = [0, 0.5, 1].map((f) => Math.round(maxAll * f));
   const labelEvery = series.length > 15 ? 5 : series.length > 10 ? 3 : 1;
 
+  const hd = hover != null ? series[hover] : null;
+
   return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="每日访问趋势折线图">
+    <div className="relative">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full"
+        role="img"
+        aria-label="每日访问趋势折线图"
+        onMouseLeave={() => setHover(null)}
+      >
         {/* 网格 + Y 轴刻度 */}
         {[0, 0.5, 1].map((f, i) => {
           const yy = padT + plotH - f * plotH;
@@ -280,6 +290,20 @@ function TrendChart({ daily, range }: { daily: { day: string; views: number; uv:
         <path d={line('uv', yUv)} fill="none" stroke="#ff00a0" strokeWidth={1.6} />
         {/* 总访问线（cyan） */}
         <path d={line('views', yV)} fill="none" stroke="#00f0ff" strokeWidth={1.8} />
+        {/* 透明粗线用于 hover 命中 */}
+        <path
+          d={line('views', yV)}
+          fill="none"
+          stroke="transparent"
+          strokeWidth={14}
+          style={{ pointerEvents: 'stroke', cursor: 'pointer' }}
+          onMouseMove={(e) => {
+            const rect = (e.currentTarget as SVGPathElement).getBoundingClientRect();
+            const rel = (e.clientX - rect.left) / rect.width;
+            const idx = Math.round(rel * (series.length - 1));
+            setHover(Math.max(0, Math.min(series.length - 1, idx)));
+          }}
+        />
         {/* X 轴日期 */}
         {series.map((d, i) =>
           i % labelEvery === 0 ? (
@@ -296,11 +320,31 @@ function TrendChart({ daily, range }: { daily: { day: string; views: number; uv:
             </text>
           ) : null,
         )}
-        {/* 端点 */}
+        {/* 端点 + hover 高亮 */}
         {series.map((d, i) => (
-          <circle key={d.day} cx={x(i)} cy={yV(d.views)} r={1.8} fill="#00f0ff" />
+          <circle
+            key={d.day}
+            cx={x(i)}
+            cy={yV(d.views)}
+            r={hover === i ? 3.4 : 1.8}
+            fill={hover === i ? '#fff' : '#00f0ff'}
+          />
         ))}
       </svg>
+      {hd && (
+        <div
+          className="pointer-events-none absolute z-10 rounded border border-line bg-void/95 px-2 py-1 font-mono text-[10px] leading-tight text-slate-200 shadow-neon"
+          style={{
+            left: `${((hover! / Math.max(1, series.length - 1)) * 100).toFixed(1)}%`,
+            top: 4,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <div className="text-muted">{hd.day}</div>
+          <div className="text-cyan">访问 {hd.views} 次</div>
+          <div className="text-magenta">人数 {hd.uv} 人</div>
+        </div>
+      )}
       <div className="flex gap-4 mt-1 text-[10px] font-mono">
         <span className="flex items-center gap-1 text-cyan">
           <span className="inline-block w-3 h-0.5 bg-cyan" /> 总访问次数
@@ -411,6 +455,8 @@ function StatsPanel() {
     load(range);
   }, [range]);
 
+  const [expanded, setExpanded] = useState(false);
+
   const maxViews = Math.max(1, ...(data?.perPost.map((p) => p.views) || []));
   const totalCountry = data?.byCountry.reduce((s, c) => s + c.c, 0) || 1;
   const titleOf = (slug: string) => {
@@ -481,36 +527,53 @@ function StatsPanel() {
             </div>
           </div>
 
-          {/* 每篇文章阅读数 */}
+          {/* 每篇文章阅读数（折叠前25） */}
           <div>
-            <h3 className="text-xs font-mono text-muted mb-2">各文章阅读次数 / 平均时长</h3>
-            <div className="space-y-2">
-              {data.perPost.map((p) => (
-                <div key={p.slug} className="flex items-center gap-3">
-                  <div className="w-48 shrink-0 truncate text-sm text-slate-200" title={titleOf(p.slug)}>
-                    {titleOf(p.slug)}
-                  </div>
-                  <div className="h-2 flex-1 bg-void/60">
-                    <div
-                      className="h-full bg-cyan"
-                      style={{ width: `${(p.views / maxViews) * 100}%` }}
-                    />
-                  </div>
-                  <div className="w-16 shrink-0 text-right font-mono text-xs text-muted">
-                    {p.views} 次
-                  </div>
-                  <div className="w-20 shrink-0 text-right font-mono text-xs text-muted">
-                    {Math.round(p.avg_duration)}s 均
-                  </div>
+            <h3 className="text-xs font-mono text-muted mb-2">
+              各文章阅读次数 / 平均时长（已隐藏已删除文章）
+            </h3>
+            {(() => {
+              const visible = data.perPost.filter((p) => titleOf(p.slug) !== p.slug);
+              const shown = expanded ? visible : visible.slice(0, 25);
+              return (
+                <div className="space-y-2">
+                  {shown.map((p) => (
+                    <div key={p.slug} className="flex items-center gap-3">
+                      <div className="w-48 shrink-0 truncate text-sm text-slate-200" title={titleOf(p.slug)}>
+                        {titleOf(p.slug)}
+                      </div>
+                      <div className="h-2 flex-1 bg-void/60">
+                        <div
+                          className="h-full bg-cyan"
+                          style={{ width: `${(p.views / maxViews) * 100}%` }}
+                        />
+                      </div>
+                      <div className="w-16 shrink-0 text-right font-mono text-xs text-muted">
+                        {p.views} 次
+                      </div>
+                      <div className="w-20 shrink-0 text-right font-mono text-xs text-muted">
+                        {Math.round(p.avg_duration)}s 均
+                      </div>
+                    </div>
+                  ))}
+                  {visible.length === 0 && (
+                    <p className="text-xs text-muted">暂无数据，访问文章后自动累计</p>
+                  )}
+                  {visible.length > 25 && (
+                    <button
+                      type="button"
+                      onClick={() => setExpanded((e) => !e)}
+                      className="text-xs text-cyan hover:text-magenta"
+                    >
+                      {expanded ? '收起' : `展开全部 ${visible.length} 条`}
+                    </button>
+                  )}
                 </div>
-              ))}
-              {data.perPost.length === 0 && (
-                <p className="text-xs text-muted">暂无数据，访问文章后自动累计</p>
-              )}
-            </div>
+              );
+            })()}
           </div>
 
-          {/* 国家占比 */}
+          {/* 国家占比（显示具体数量） */}
           <div>
             <h3 className="text-xs font-mono text-muted mb-2">国家 / 地区占比</h3>
             <div className="flex flex-wrap gap-2">
@@ -518,9 +581,11 @@ function StatsPanel() {
                 <span
                   key={c.country}
                   className="border border-line px-2 py-1 font-mono text-xs text-slate-200"
+                  title={`${c.country === 'XX' ? '未知' : c.country}：${c.c} 次访问`}
                 >
                   {c.country === 'XX' ? '未知' : c.country} ·{' '}
-                  <span className="text-cyan">
+                  <span className="text-cyan">{c.c} 次</span> ·{' '}
+                  <span className="text-muted">
                     {((c.c / totalCountry) * 100).toFixed(1)}%
                   </span>
                 </span>
@@ -588,6 +653,74 @@ export default function AdminPanel() {
   const [newPass, setNewPass] = useState('');
   const [newPass2, setNewPass2] = useState('');
   const [passMsg, setPassMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [tgText, setTgText] = useState('');
+  const [tgStatus, setTgStatus] = useState<{ kind: 'ok' | 'err' | 'sending'; text: string } | null>(null);
+
+  /* ---------- AI 模型拉取与多选 ---------- */
+  const [aiAvailableModels, setAiAvailableModels] = useState<string[]>([]);
+  const [aiModelsLoading, setAiModelsLoading] = useState(false);
+  const [aiModelsError, setAiModelsError] = useState('');
+
+  async function fetchAiModels() {
+    setAiModelsLoading(true);
+    setAiModelsError('');
+    try {
+      const site = loadSite();
+      const hash = site.settings?.adminPassHash || '';
+      const r = await fetch('/api/models', { headers: { 'x-admin-hash': hash } });
+      const j = await r.json();
+      if (j.ok && Array.isArray(j.models)) {
+        setAiAvailableModels(j.models);
+      } else {
+        setAiModelsError(j.error || '拉取失败');
+      }
+    } catch (e) {
+      setAiModelsError(String(e));
+    } finally {
+      setAiModelsLoading(false);
+    }
+  }
+
+  /** 当前已选模型列表（从 settings.aiModels 解析） */
+  const selectedAiModels = (state.settings.aiModels ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  function toggleAiModel(model: string) {
+    const next = selectedAiModels.includes(model)
+      ? selectedAiModels.filter((m) => m !== model)
+      : [...selectedAiModels, model];
+    updateSettings({ aiModels: next.join(',') });
+  }
+
+  /** 把拉取到的可用模型按当前未选顺序追加到列表末尾（保留已选顺序） */
+  function addAllAiModels() {
+    const existing = new Set(selectedAiModels);
+    const toAdd = aiAvailableModels.filter((m) => !existing.has(m));
+    if (toAdd.length === 0) return;
+    updateSettings({ aiModels: [...selectedAiModels, ...toAdd].join(',') });
+  }
+
+  async function sendToTelegram(textOverride?: string, photo = false) {
+    const text = (textOverride ?? tgText).trim();
+    if (!text) { setTgStatus({ kind: 'err', text: '请输入要推送的内容' }); return; }
+    const site = loadSite();
+    const hash = site.settings?.adminPassHash || '';
+    setTgStatus({ kind: 'sending', text: '发送中…' });
+    try {
+      const r = await fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-admin-hash': hash },
+        body: JSON.stringify({ text, photo }),
+      });
+      const j = await r.json();
+      if (j.ok) setTgStatus({ kind: 'ok', text: '已推送到群和频道 ✅' });
+      else setTgStatus({ kind: 'err', text: j.error || '发送失败' });
+    } catch (e) {
+      setTgStatus({ kind: 'err', text: String(e) });
+    }
+  }
 
   const savedRef = useRef<string>(JSON.stringify(state));
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1066,13 +1199,13 @@ export default function AdminPanel() {
                         value={post.author ?? 'hermes'}
                         onChange={(e) =>
                           updatePost(post.id, {
-                            author: e.target.value as 'hermes' | 'vincent',
+                            author: e.target.value as 'hermes' | 'ots',
                           })
                         }
                         className="border border-line bg-transparent px-2 py-1 font-mono text-xs text-slate-200"
                       >
                         <option value="hermes">Hermes 协作</option>
-                        <option value="vincent">我的文章</option>
+                        <option value="ots">我的文章</option>
                       </select>
                     </label>
 
@@ -1219,6 +1352,78 @@ export default function AdminPanel() {
                           ↗ 新标签预览（需先保存）
                         </a>
                       </div>
+
+                      {/* Telegram 一键推送（写文章界面） */}
+                      <div className="rounded border border-cyan/30 bg-cyan/5 p-4">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="font-mono text-xs tracking-wider text-cyan">
+                            📨 推送到 Telegram（群 + 频道）
+                          </span>
+                          {tgStatus && (
+                            <span
+                              className={
+                                tgStatus.kind === 'ok'
+                                  ? 'text-xs text-cyan'
+                                  : tgStatus.kind === 'err'
+                                    ? 'text-xs text-magenta'
+                                    : 'text-xs text-muted'
+                              }
+                            >
+                              {tgStatus.text}
+                            </span>
+                          )}
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={tgText}
+                          onChange={(e) => setTgText(e.target.value)}
+                          placeholder="可选：自定义推送文字（留空则自动用「标题 + 摘要 + 链接」格式发送本文）"
+                          className="mb-3 w-full resize-y border border-line bg-void/60 px-3 py-2 text-sm text-slate-100 focus:border-cyan focus:outline-none focus:shadow-neon transition-all"
+                        />
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              sendToTelegram(
+                                `📝 新文章：<b>${post.title || '无标题'}</b>\n${(post.excerpt || '').slice(0, 120)}\nhttps://www.otscup.com/blog/${post.slug}`,
+                              )
+                            }
+                            disabled={tgStatus?.kind === 'sending'}
+                            className="px-4 py-2 text-xs text-cyan border border-cyan/40 hover:bg-cyan hover:text-void transition-all disabled:opacity-50"
+                          >
+                            发送此文
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              sendToTelegram(
+                                `📝 新文章：<b>${post.title || '无标题'}</b>\n${(post.excerpt || '').slice(0, 120)}\nhttps://www.otscup.com/blog/${post.slug}`,
+                                true,
+                              )
+                            }
+                            disabled={tgStatus?.kind === 'sending'}
+                            className="px-4 py-2 text-xs text-slate-300 border border-line hover:border-cyan hover:text-cyan transition-all disabled:opacity-50"
+                          >
+                            发送此文（带封面）
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => sendToTelegram()}
+                            disabled={tgStatus?.kind === 'sending'}
+                            className="px-4 py-2 text-xs text-slate-300 border border-line hover:border-cyan hover:text-cyan transition-all disabled:opacity-50"
+                          >
+                            发送自定义文字
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => sendToTelegram(undefined, true)}
+                            disabled={tgStatus?.kind === 'sending'}
+                            className="px-4 py-2 text-xs text-slate-300 border border-line hover:border-cyan hover:text-cyan transition-all disabled:opacity-50"
+                          >
+                            发送自定义（带封面）
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </article>
@@ -1302,6 +1507,201 @@ export default function AdminPanel() {
                   限制均在服务端强制（图片数/评论数/开关）；图片大小因评论仅存图片链接、服务端无法校验远程体积，
                   仅作为前端软提示。数据存于 D1，避免滥用请配合图形验证码（已启用）。
                 </p>
+
+                <div className="mt-5 space-y-4 border-t border-line pt-5">
+                  <p className="section-label">Giscus 配置（可选，填了即用 Giscus，否则用上面的自建评论）</p>
+                  <p className="font-body text-xs text-muted">
+                    仓库须为公开、已安装 Giscus App 并开启 Discussions。仓库 ID 与分类 ID 在
+                    <a href="https://giscus.app" target="_blank" rel="noreferrer" className="text-cyan hover:underline"> giscus.app</a>
+                    配置页底部获取。三项（仓库 / 仓库ID / 分类ID）都填才生效，否则自动回退到自建评论。
+                  </p>
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <TextField
+                      id="giscus-repo"
+                      label="仓库 owner/repo"
+                      value={state.settings.commentsRepo ?? ''}
+                      onChange={(v) => updateSettings({ commentsRepo: v || undefined })}
+                      placeholder="otscup/comments"
+                    />
+                    <TextField
+                      id="giscus-repoid"
+                      label="仓库 ID（repo-id）"
+                      value={state.settings.giscusRepoId ?? ''}
+                      onChange={(v) => updateSettings({ giscusRepoId: v || undefined })}
+                      placeholder="例如 R_kgDOxxxxxx"
+                    />
+                    <TextField
+                      id="giscus-category"
+                      label="分类名"
+                      value={state.settings.giscusCategory ?? ''}
+                      onChange={(v) => updateSettings({ giscusCategory: v || undefined })}
+                      placeholder="Announcements"
+                    />
+                    <TextField
+                      id="giscus-catid"
+                      label="分类 ID（category-id）"
+                      value={state.settings.giscusCategoryId ?? ''}
+                      onChange={(v) => updateSettings({ giscusCategoryId: v || undefined })}
+                      placeholder="例如 DIC_xxxxxxx"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="cyber-card p-5">
+              <h2 className="section-label">新评论通知</h2>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label htmlFor="comment-notify" className="block text-xs font-mono tracking-wider text-slate-300">
+                    新评论 Telegram 通知
+                  </label>
+                  <p className="mt-1 font-body text-xs text-muted">
+                    开启后，每有新评论即推送到下方 Telegram 群组配置（Bot Token + Chat ID）。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => updateSettings({ commentNotifyEnabled: !state.settings.commentNotifyEnabled })}
+                  className={`relative h-6 w-12 shrink-0 rounded-full border transition-colors ${
+                    state.settings.commentNotifyEnabled ? 'border-cyan bg-cyan/30' : 'border-line bg-void/60'
+                  }`}
+                  aria-pressed={state.settings.commentNotifyEnabled}
+                  aria-label="新评论通知"
+                >
+                  <span
+                    className={`absolute top-0.5 h-4 w-4 rounded-full transition-all ${
+                      state.settings.commentNotifyEnabled ? 'left-7 bg-cyan' : 'left-0.5 bg-muted'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-4 border-t border-line pt-5">
+                <p className="section-label">Telegram 群组配置（通知 + 发文推送共用）</p>
+                <p className="font-body text-xs text-muted">
+                  Bot Token 在 Telegram @BotFather 创建机器人获取；Chat ID 通过 @getidsbot 或群 @group 获取。
+                  多个 Chat ID 请用逗号分隔，会逐个推送。
+                </p>
+                <TextField
+                  id="tg-bot-token"
+                  label="Bot Token"
+                  value={state.settings.tgBotToken ?? ''}
+                  onChange={(v) => updateSettings({ tgBotToken: v || undefined })}
+                  placeholder="123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                />
+                <TextField
+                  id="tg-chat-ids"
+                  label="Chat ID 列表（逗号分隔）"
+                  value={(state.settings.tgChatIds ?? []).join(', ')}
+                  onChange={(v) =>
+                    updateSettings({
+                      tgChatIds: v
+                        .split(',')
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder="-100xxxxxxxxxxxxx, -100yyyyyyyyyyyyy"
+                />
+              </div>
+            </section>
+
+            <section className="cyber-card p-5">
+              <h2 className="section-label">AI 助手</h2>
+              <p className="mb-4 font-body text-sm text-muted">
+                前台右下角 AI 助手（🤖）依赖 OpenAI 兼容 API。填入 API Key 后访客即可提问部署/复现问题；
+                留空则助手返回「AI 后端未配置」。
+              </p>
+              <div className="space-y-4">
+                <TextField
+                  id="aihub-key"
+                  label="API Key"
+                  value={state.settings.aihubKey ?? ''}
+                  onChange={(v) => updateSettings({ aihubKey: v || undefined })}
+                  placeholder="sk-xxxxxxxxxxxxxxxxxxxxx"
+                />
+                <TextField
+                  id="ai-base-url"
+                  label="API 基础地址"
+                  value={state.settings.aiBaseUrl ?? ''}
+                  onChange={(v) => updateSettings({ aiBaseUrl: v || undefined })}
+                  placeholder="https://aihub.071129.xyz/v1"
+                />
+                <div className="border-t border-line pt-4">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-mono tracking-wider text-slate-300">
+                      模型列表（按顺序 failover）
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => void fetchAiModels()}
+                      disabled={aiModelsLoading}
+                      className="border border-cyan/50 px-3 py-1.5 font-mono text-xs text-cyan transition-colors hover:bg-cyan hover:text-void disabled:opacity-40"
+                    >
+                      {aiModelsLoading ? '拉取中…' : '📡 拉取可用模型'}
+                    </button>
+                  </div>
+                  <p className="mt-1 font-body text-xs text-muted">
+                    任一模型可用即应答，全部失败才报「AI 暂时不可用」。
+                  </p>
+
+                  {/* 手动输入（逗号分隔） */}
+                  <TextAreaField
+                    id="ai-models"
+                    label="手动输入（逗号分隔，保留顺序作为 failover 优先级）"
+                    value={state.settings.aiModels ?? ''}
+                    onChange={(v) => updateSettings({ aiModels: v || undefined })}
+                    rows={2}
+                    placeholder="tencent/hy3:free,inclusionai/ling-3.0-flash:free"
+                  />
+
+                  {aiModelsError && (
+                    <p className="font-mono text-xs text-magenta">⚠ {aiModelsError}</p>
+                  )}
+
+                  {aiAvailableModels.length > 0 && (
+                    <div className="mt-2">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="font-mono text-xs text-muted">
+                          可用模型（点击勾选，已选加入列表）：
+                        </span>
+                        <button
+                          type="button"
+                          onClick={addAllAiModels}
+                          className="border border-cyan/40 px-2 py-0.5 font-mono text-[10px] text-cyan hover:bg-cyan/10"
+                        >
+                          全选
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                        {aiAvailableModels.map((m) => {
+                          const checked = selectedAiModels.includes(m);
+                          return (
+                            <label
+                              key={m}
+                              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                                checked
+                                  ? 'border-cyan/60 bg-cyan/10'
+                                  : 'border-line bg-void/40 hover:border-cyan/40'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleAiModel(m)}
+                                className="h-3.5 w-3.5 accent-cyan"
+                              />
+                              <span className="font-mono text-[11px] leading-tight text-slate-300 break-all">
+                                {m}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -1624,6 +2024,14 @@ export default function AdminPanel() {
                     />
                   </div>
                   <div className="lg:col-span-2">
+                    <TextField
+                      id={`project-slug-${p.id}`}
+                      label="详情页路由 slug（可选，留空用 id）"
+                      value={p.slug ?? ''}
+                      onChange={(v) => updateProject(p.id, { slug: v })}
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
                     <TextAreaField
                       id={`project-desc-${p.id}`}
                       label="描述"
@@ -1692,6 +2100,94 @@ export default function AdminPanel() {
                     <p className="text-muted text-xs mt-1">
                       图片需小于 400KB（localStorage 限制约 5MB）
                     </p>
+                  </div>
+
+                  {/* 成品截图 / 多图 gallery */}
+                  <div className="lg:col-span-2">
+                    <label className="block text-xs font-mono tracking-wider text-slate-300 mb-1">
+                      成品截图 / 效果展示（多图，R2 存储）
+                    </label>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {(p.gallery ?? []).map((src, i) => (
+                        <div key={i} className="relative shrink-0">
+                          <img
+                            src={src}
+                            alt={`截图 ${i + 1}`}
+                            className="w-16 h-16 object-cover border border-cyan/40"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateProject(p.id, {
+                                gallery: (p.gallery ?? []).filter((_, j) => j !== i),
+                              })
+                            }
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-magenta text-void flex items-center justify-center text-xs leading-none"
+                            aria-label="移除截图"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <input
+                        id={`project-gallery-${p.id}`}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={async (e) => {
+                          const files = Array.from(e.target.files ?? []);
+                          for (const f of files) {
+                            try {
+                              const fd = new FormData();
+                              fd.append('file', f);
+                              const r = await fetch('/api/upload', {
+                                method: 'POST',
+                                headers: { 'x-admin-hash': (loadSite().settings?.adminPassHash || '') },
+                                body: fd,
+                              });
+                              const j = await r.json();
+                              if (j.ok) {
+                                updateProject(p.id, {
+                                  gallery: [...(p.gallery ?? []), j.url],
+                                });
+                              }
+                            } catch {
+                              /* 忽略单张失败 */
+                            }
+                          }
+                          e.target.value = '';
+                        }}
+                        className="text-xs text-slate-300 file:mr-3 file:px-3 file:py-1 file:border file:border-cyan/40 file:bg-cyan/5 file:text-cyan file:text-xs file:cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 部署信息 */}
+                  <div className="lg:col-span-2">
+                    <p className="text-xs font-mono tracking-wider text-slate-300 mb-2">部署信息（可选）</p>
+                    <div className="space-y-3">
+                      <TextField
+                        id={`project-cf-${p.id}`}
+                        label="Cloudflare 一键部署链接（可选）"
+                        value={p.deploy?.cloudflareUrl ?? ''}
+                        onChange={(v) =>
+                          updateProject(p.id, {
+                            deploy: { ...(p.deploy ?? {}), cloudflareUrl: v },
+                          })
+                        }
+                      />
+                      <TextAreaField
+                        id={`project-agent-${p.id}`}
+                        label="AI 部署指令（自然语言，访客复制后交给本地 AI）"
+                        rows={4}
+                        value={p.deploy?.agentPrompt ?? ''}
+                        onChange={(v) =>
+                          updateProject(p.id, {
+                            deploy: { ...(p.deploy ?? {}), agentPrompt: v },
+                          })
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               </section>
@@ -1887,6 +2383,51 @@ export default function AdminPanel() {
               >
                 恢复默认内容
               </button>
+            </section>
+
+            <section className="cyber-card p-5">
+              <h2 className="section-label">Telegram 推送</h2>
+              <p className="text-muted text-xs mb-2">
+                手动推送消息到 Telegram 群与频道（自动随每日博客一起发送）。支持 <b>加粗</b> 与换行。
+              </p>
+              <textarea
+                rows={4}
+                value={tgText}
+                onChange={(e) => setTgText(e.target.value)}
+                placeholder="输入要推送的文字，例如：📢 新教程已发布：..."
+                className="w-full bg-void/60 border border-line px-3 py-2 text-slate-100 text-sm font-mono focus:border-cyan focus:outline-none focus:shadow-neon transition-all resize-y mb-3"
+              />
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => sendToTelegram()}
+                  disabled={tgStatus?.kind === 'sending'}
+                  className="px-4 py-2 text-xs text-cyan border border-cyan/40 hover:bg-cyan hover:text-void transition-all disabled:opacity-50"
+                >
+                  {tgStatus?.kind === 'sending' ? '发送中…' : '推送到群和频道'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => sendToTelegram(undefined, true)}
+                  disabled={tgStatus?.kind === 'sending'}
+                  className="px-4 py-2 text-xs text-slate-300 border border-line hover:border-cyan hover:text-cyan transition-all disabled:opacity-50"
+                >
+                  带封面推送
+                </button>
+                {tgStatus && (
+                  <span
+                    className={
+                      tgStatus.kind === 'ok'
+                        ? 'text-xs text-cyan'
+                        : tgStatus.kind === 'err'
+                          ? 'text-xs text-magenta'
+                          : 'text-xs text-muted'
+                    }
+                  >
+                    {tgStatus.text}
+                  </span>
+                )}
+              </div>
             </section>
           </div>
         )}

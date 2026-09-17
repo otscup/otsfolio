@@ -29,6 +29,19 @@ export type Project = {
   featured?: boolean;
   /** 封面图：本地阶段为 dataURL，云端阶段为 R2 公开地址 */
   cover?: string;
+  /** 多图展示（成品截图/效果演示），R2 地址数组。无则不显示 */
+  gallery?: string[];
+  /** 详情页路由键：URL 友好，唯一。留空时回退用 id */
+  slug?: string;
+  /** 一键部署信息（可选）：AI 部署指令 + Cloudflare 模板链接。无则不显示 */
+  deploy?: {
+    /** 配套源码仓库（公开可访问） */
+    repoUrl?: string;
+    /** Cloudflare 一键部署模板链接（Deploy to Cloudflare） */
+    cloudflareUrl?: string;
+    /** 写给本地 AI 的部署指令（自然语言，AI 可直接执行） */
+    agentPrompt?: string;
+  };
 };
 
 export type TimelineItem = {
@@ -63,8 +76,17 @@ export type Post = {
   published: boolean;
   /** 封面图：本地为 dataURL，云端为 R2 地址 */
   cover?: string;
-  /** 作者：'hermes' 由 AI 协作发布，'vincent' 由站长本人撰写 */
-  author?: 'hermes' | 'vincent';
+  /** 作者：'hermes' 由 AI 协作发布，'ots' 由站长本人撰写 */
+  author?: 'hermes' | 'ots';
+  /** 一键部署信息（可选）：AI 部署指令 + Cloudflare 模板链接。无则不显示 */
+  deploy?: {
+    /** 配套源码仓库（公开可访问） */
+    repoUrl?: string;
+    /** Cloudflare 一键部署模板链接（Deploy to Cloudflare） */
+    cloudflareUrl?: string;
+    /** 写给本地 AI 的部署指令（自然语言，AI 可直接执行） */
+    agentPrompt?: string;
+  };
 };
 
 /** 站点设置 */
@@ -79,12 +101,20 @@ export type Settings = {
    */
   adminPassHash: string;
   /**
-   * Giscus 评论仓库（格式 owner/repo，须为公开仓库且已安装 Giscus App）。
-   * 自 v2 起评论改用自建 D1 系统，此字段已弃用，保留向后兼容。
+   * 评论系统配置。
+   * - 若配置了 commentsRepo + giscusRepoId + giscusCategoryId，文章页使用 Giscus（基于 GitHub Discussions）。
+   * - 否则回退到自建 D1 评论系统（Comments.tsx）。
+   * commentsRepo 格式为 owner/repo，须为公开仓库且已安装 Giscus App、开启 Discussions。
    */
   commentsRepo?: string;
+  /** Giscus 仓库 ID（giscus.app 配置页提供） */
+  giscusRepoId?: string;
+  /** Giscus 分类名（如 Announcements） */
+  giscusCategory?: string;
+  /** Giscus 分类 ID（giscus.app 配置页提供） */
+  giscusCategoryId?: string;
   /**
-   * 是否开启评论（自建 D1 评论系统）。
+   * 是否开启评论。false 时隐藏所有评论区（Giscus 与自建均不显示）。
    */
   commentsEnabled?: boolean;
   /**
@@ -104,6 +134,34 @@ export type Settings = {
    * Cloudflare Turnstile 站点密钥。留空则后台登录不做真人验证（仅口令）。
    */
   turnstileSiteKey?: string;
+  /**
+   * AI 助手 API Key。填入后前台右下角 AI 助手可用；留空则助手返回「后端未配置」。
+   */
+  aihubKey?: string;
+  /**
+   * AI 助手 API 基础地址。默认 https://aihub.071129.xyz/v1；可改为任意 OpenAI 兼容端点。
+   */
+  aiBaseUrl?: string;
+  /**
+   * AI 助手模型列表（按顺序 failover）。逗号分隔，留空用内置默认列表。
+   */
+  aiModels?: string;
+  /**
+   * 新评论 Telegram 通知开关。开启后每有新评论即推送到 tgBotToken/tgChatIds 配置的群组。
+   */
+  commentNotifyEnabled?: boolean;
+  /**
+   * Telegram Bot Token。新评论通知与发文推送共用。在 @BotFather 创建机器人获取。
+   */
+  tgBotToken?: string;
+  /**
+   * 单一 Telegram Chat ID（兼容旧数据）。新评论通知与发文推送共用。
+   */
+  tgChatId?: string;
+  /**
+   * Telegram Chat ID 列表。多个时逐个推送（新评论通知与发文推送共用）。
+   */
+  tgChatIds?: string[];
 };
 
 export type Contact = {

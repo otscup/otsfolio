@@ -2,6 +2,10 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import SiteView from './components/SiteView';
 import BlogListPage from './components/BlogListPage';
 import BlogPostPage from './components/BlogPostPage';
+import ProjectsPage from './components/ProjectsPage';
+import ProjectDetail from './components/ProjectDetail';
+import ChatWidget from './components/ChatWidget';
+import SeoJsonLd from './components/SeoJsonLd';
 import { useHashRoute } from './hooks/useHashRoute';
 import { useSite } from './hooks/useSite';
 import { useDocumentMeta } from './hooks/useDocumentMeta';
@@ -43,6 +47,9 @@ export default function App() {
   const isAdmin = path.startsWith('admin');
   const isBlogPost = /^blog\/.+/.test(path);
   const isBlogList = path === 'blog';
+  const isProjects = path === 'projects';
+  const isProjectDetail = /^projects\/.+/.test(path);
+  const projectSlug = isProjectDetail ? decodeURIComponent(path.slice('projects/'.length)) : '';
 
   const slug = isBlogPost ? decodeURIComponent(path.slice('blog/'.length)) : '';
   const post = isBlogPost ? posts.find((p) => p.slug === slug && p.published) : undefined;
@@ -62,6 +69,30 @@ export default function App() {
         : { title: settings.siteTitle, description: settings.siteDescription };
 
   useDocumentMeta(meta);
+
+  // 全站结构化数据：非文章页注入 WebSite + Breadcrumb（文章页由 BlogPostPage 单独管 Article）
+  const siteJsonLd = !isBlogPost
+    ? {
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'WebSite',
+            name: settings.siteTitle,
+            url: 'https://www.otscup.com',
+            description: settings.siteDescription,
+          },
+          {
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: '首页', item: 'https://www.otscup.com' },
+              ...(isBlogList
+                ? [{ '@type': 'ListItem', position: 2, name: '博客', item: 'https://www.otscup.com/blog' }]
+                : []),
+            ],
+          },
+        ],
+      }
+    : null;
 
   // 路由切换后处理滚动：有锚点(#about)则滚到区块，否则回页首
   useEffect(() => {
@@ -98,6 +129,26 @@ export default function App() {
 
   if (isAdmin) return <AdminRoute />;
   if (isBlogPost) return <BlogPostPage slug={slug} />;
-  if (isBlogList) return <BlogListPage />;
-  return <SiteView />;
+  if (isBlogList)
+    return (
+      <>
+        {siteJsonLd && <SeoJsonLd data={siteJsonLd} />}
+        <BlogListPage />
+      </>
+    );
+  if (isProjectDetail) return <ProjectDetail slug={projectSlug} />;
+  if (isProjects)
+    return (
+      <>
+        {siteJsonLd && <SeoJsonLd data={siteJsonLd} />}
+        <ProjectsPage />
+      </>
+    );
+  return (
+    <>
+      {siteJsonLd && <SeoJsonLd data={siteJsonLd} />}
+      <SiteView />
+      <ChatWidget />
+    </>
+  );
 }

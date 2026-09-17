@@ -2,6 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========== 主题：深色（默认） ==========
+   深色主题用 Tailwind 默认配色（tailwind.config.js 的 hex），无需额外覆盖。
+   浅色主题通过下方 html.light 选择器覆盖关键 token。 */
+
+/* ========== 主题：浅色 ========== */
+html.light {
+  color-scheme: light;
+}
+html.light body {
+  background-color: #f4f4fb;
+  color: #1a1a2e;
+}
+/* 卡片与描边（bg-void/N、bg-surface/N、border-white/N） */
+html.light .bg-void\/80 { background-color: rgba(255, 255, 255, 0.85); }
+html.light .bg-void\/60 { background-color: rgba(255, 255, 255, 0.65); }
+html.light .bg-void\/40 { background-color: rgba(255, 255, 255, 0.5); }
+html.light .bg-void\/90 { background-color: rgba(255, 255, 255, 0.92); }
+html.light .bg-void\/70 { background-color: rgba(255, 255, 255, 0.75); }
+html.light .bg-void\/50 { background-color: rgba(255, 255, 255, 0.55); }
+html.light .bg-surface\/60 { background-color: rgba(255, 255, 255, 0.7); }
+html.light .bg-surface\/80 { background-color: rgba(255, 255, 255, 0.85); }
+html.light .bg-white\/5 { background-color: rgba(0, 0, 0, 0.04); }
+html.light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.07); }
+html.light .bg-white\/80 { background-color: rgba(255, 255, 255, 0.85); }
+html.light .bg-white\/90 { background-color: rgba(255, 255, 255, 0.92); }
+html.light .bg-white\/20 { background-color: rgba(0, 0, 0, 0.1); }
+/* 主文字（slate-100/200/300 在深底上为浅色，浅底需改深色） */
+html.light .text-slate-100 { color: #1a1a2e; }
+html.light .text-slate-200 { color: #2d2d44; }
+html.light .text-slate-300 { color: #3d3d58; }
+html.light .text-slate-400 { color: #5a5a72; }
+html.light .text-slate-500 { color: #6a6a82; }
+/* 边框与分割线 */
+html.light .border-line { border-color: #d0d0e0; }
+html.light .border-white\/10 { border-color: rgba(0, 0, 0, 0.1); }
+html.light .border-white\/5 { border-color: rgba(0, 0, 0, 0.05); }
+html.light .border-white\/20 { border-color: rgba(0, 0, 0, 0.12); }
+html.light .divide-white\/5 > * + * { border-color: rgba(0, 0, 0, 0.08); }
+/* 阴影（深色霓虹 → 浅色柔和） */
+html.light .shadow-neon { box-shadow: 0 0 10px rgba(0, 170, 190, 0.2), 0 0 28px rgba(0, 170, 190, 0.08); }
+html.light .shadow-neon-magenta { box-shadow: 0 0 10px rgba(200, 0, 120, 0.18), 0 0 28px rgba(200, 0, 120, 0.06); }
+/* 网格背景 */
+html.light body {
+  background-image:
+    linear-gradient(rgba(20, 20, 60, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 20, 60, 0.045) 1px, transparent 1px);
+}
+/* 选中与滚动条 */
+html.light ::selection { background: #00a0b0; color: #fff; }
+html.light ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.04); }
+html.light ::-webkit-scrollbar-thumb { background: rgba(0, 160, 190, 0.3); }
+html.light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 160, 190, 0.5); }
+html.light * { scrollbar-color: rgba(0, 160, 190, 0.3) rgba(0, 0, 0, 0.04); }
+
 @layer base {
   html { scroll-behavior: smooth; }
   body {
@@ -114,3 +168,63 @@
   .cyber-card:hover { transform: none; }
   .group:hover .group-scale { transform: none; }
 }
+
+/* === BEGIN generated light overrides === */
+/* ========== Light theme overrides (generated) ========== */
+html.light * { scrollbar-color: rgba(0,138,148,.3) rgba(0,0,0,.04) !important; }
+html.light .accent-cyan { color: #008a94 !important; }
+html.light .bg-cyan { background-color: #008a94 !important; }
+html.light .bg-cyan\/10 { background-color: rgba(0,138,148,0.10) !important; }
+html.light .bg-cyan\/20 { background-color: rgba(0,138,148,0.20) !important; }
+html.light .bg-cyan\/30 { background-color: rgba(0,138,148,0.30) !important; }
+html.light .bg-cyan\/40 { background-color: rgba(0,138,148,0.40) !important; }
+html.light .bg-cyan\/5 { background-color: rgba(0,138,148,0.05) !important; }
+html.light .bg-lime { background-color: #7a8000 !important; }
+html.light .bg-line { background-color: #d0d0e0 !important; }
+html.light .bg-magenta { background-color: #b40070 !important; }
+html.light .bg-magenta\/10 { background-color: rgba(180,0,112,0.10) !important; }
+html.light .bg-magenta\/5 { background-color: rgba(180,0,112,0.05) !important; }
+html.light .bg-muted { background-color: #6a6a82 !important; }
+html.light .bg-surface { background-color: #ffffff !important; }
+html.light .bg-surface\/50 { background-color: rgba(255,255,255,0.50) !important; }
+html.light .bg-surface\/60 { background-color: rgba(255,255,255,0.60) !important; }
+html.light .bg-void { background-color: #ffffff !important; }
+html.light .bg-void\/40 { background-color: rgba(255,255,255,0.40) !important; }
+html.light .bg-void\/60 { background-color: rgba(255,255,255,0.60) !important; }
+html.light .bg-void\/70 { background-color: rgba(255,255,255,0.70) !important; }
+html.light .bg-void\/80 { background-color: rgba(255,255,255,0.80) !important; }
+html.light .bg-void\/90 { background-color: rgba(255,255,255,0.90) !important; }
+html.light .bg-void\/95 { background-color: rgba(255,255,255,0.95) !important; }
+html.light .border-cyan { border-color: #008a94 !important; }
+html.light .border-cyan\/30 { border-color: rgba(0,138,148,0.30) !important; }
+html.light .border-cyan\/40 { border-color: rgba(0,138,148,0.40) !important; }
+html.light .border-cyan\/50 { border-color: rgba(0,138,148,0.50) !important; }
+html.light .border-cyan\/60 { border-color: rgba(0,138,148,0.60) !important; }
+html.light .border-lime\/40 { border-color: rgba(122,128,0,0.40) !important; }
+html.light .border-lime\/50 { border-color: rgba(122,128,0,0.50) !important; }
+html.light .border-lime\/60 { border-color: rgba(122,128,0,0.60) !important; }
+html.light .border-line { border-color: #d0d0e0 !important; }
+html.light .border-magenta { border-color: #b40070 !important; }
+html.light .border-magenta\/40 { border-color: rgba(180,0,112,0.40) !important; }
+html.light .border-magenta\/50 { border-color: rgba(180,0,112,0.50) !important; }
+html.light .border-magenta\/60 { border-color: rgba(180,0,112,0.60) !important; }
+html.light .text-cyan { color: #008a94 !important; }
+html.light .text-lime { color: #7a8000 !important; }
+html.light .text-line { color: #d0d0e0 !important; }
+html.light .text-magenta { color: #b40070 !important; }
+html.light .text-muted { color: #6a6a82 !important; }
+html.light .text-slate-100 { color: #1a1a2e !important; }
+html.light .text-slate-200 { color: #2d2d44 !important; }
+html.light .text-slate-300 { color: #3d3d58 !important; }
+html.light .text-slate-400 { color: #5a5a72 !important; }
+html.light .text-slate-500 { color: #6a6a82 !important; }
+html.light .text-void { color: #ffffff !important; }
+html.light ::-webkit-scrollbar-thumb { background: rgba(0,138,148,.3) !important; }
+html.light ::-webkit-scrollbar-thumb:hover { background: rgba(0,138,148,.5) !important; }
+html.light ::-webkit-scrollbar-track { background: rgba(0,0,0,.04) !important; }
+html.light ::selection { background: #008a94 !important; color: #fff !important; }
+html.light body { background-color: #f4f4fb !important; color: #1a1a2e !important; }
+html.light body { background-image: linear-gradient(rgba(20,20,60,.045) 1px,transparent 1px), linear-gradient(90deg,rgba(20,20,60,.045) 1px,transparent 1px) !important; }
+html.light { color-scheme: light; }
+
+/* === END generated light overrides === */

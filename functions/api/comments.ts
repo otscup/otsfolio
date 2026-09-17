@@ -136,8 +136,81 @@ export const onRequest: PagesFunction<Env> = async (context) => {
       .bind(slug, name, text, now, 'approved')
       .run();
     const id = (r.meta as any)?.last_row_id ?? null;
+
+    // 新评论通知：读评论数据 + 站点标题，组装消息后推 TG（异步，不影响响应）
+    void notifyNewComment(env, slug, name, text, now).catch(() => {});
+
     return json({ ok: true, comment: { id, slug, name, body: text, created_at: now } });
   }
 
   return json({ ok: false, error: 'not found' }, 404);
 };
+
+/** 新评论推送 Telegram。失败静默（不打断评论提交流程）。 */
+async function notifyNewComment(
+  env: Env,
+  slug: string,
+  name: string,
+  body: string,
+  _createdAt: number,
+): Promise<void> {
+  try {
+    const settings = await readSettings(env);
+    // 开关：未显式关闭即视为开启（兼容旧数据未带此字段）
+    if (settings.commentNotifyEnabled === false) return;
+
+    const token = (settings.tgBotToken || '').toString().trim();
+    let chatIds: string[] = [];
+    if (Array.isArray(settings.tgChatIds)) chatIds = (settings.tgChatIds as string[]).map(String);
+    else if (settings.tgChatId) chatIds = [String(settings.tgChatId)];
+    if (!token || chatIds.length === 0) return;
+
+    // 取文章标题（从 site.data.posts 里按 slug 匹配）
+    let title = slug;
+    try {
+      const r = await env.portfolio_content
+        .prepare('SELECT data FROM site WHERE id = ?').bind('1').first<{ data: string }>();
+      if (r?.data) {
+        const posts = (JSON.parse(r.data) as { posts?: { slug: string; title: string }[] })?.posts || [];
+        const found = posts.find((p) => p.slug === slug);
+        if (found) title = found.title;
+      }
+    } catch {
+      /* 取不到标题就用 slug */
+    }
+
+    const excerpt = body.length > 120 ? body.slice(0, 120) + '…' : body;
+    const siteUrl = (settings.siteTitle || 'OTSCUP');
+    const tgText =
+      `🆕 <b>新评论</b>\n` +
+      `文章：${title}\n` +
+      `来自：${name}\n` +
+      `内容：${escapeHtml(excerpt)}\n` +
+      `链接：https://www.otscup.com/blog/${slug}`;
+
+    for (const cid of chatIds) {
+      try {
+        const tg = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ chat_id: cid, text: tgText, parse_mode: 'HTML' }),
+        });
+        // 静默吞错：通知失败不影响评论提交
+        void tg;
+      } catch {
+        /* ignore */
+      }
+    }
+    void siteUrl;
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 极简 HTML 转义，避免评论里 <b> 等标签破坏 Telegram HTML 解析 */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}

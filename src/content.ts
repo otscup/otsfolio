@@ -1,7 +1,7 @@
 /** 站点内容集中管理：改文案只动这个文件 */
 
 export const profile = {
-  name: 'VINCENT',
+  name: 'OTS',
   title: '全栈开发者',
   tagline: '移动端原生 · Web 全栈 · AI 应用集成',
   intro:

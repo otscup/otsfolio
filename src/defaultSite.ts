@@ -19,7 +19,7 @@ function cover(title: string, sub: string, c1: string, c2: string): string {
       `<rect x="70" y="200" width="640" height="200" rx="6" fill="none" stroke="${c1}" stroke-width="2.5" opacity="0.75"/>` +
       `<text x="100" y="300" font-family="monospace" font-size="76" font-weight="bold" fill="#e2e8f0">${title}</text>` +
       `<text x="100" y="360" font-family="monospace" font-size="34" fill="${c1}">${sub}</text>` +
-      `<text x="100" y="545" font-family="monospace" font-size="26" fill="${c2}">// VINCENT</text>` +
+      `<text x="100" y="545" font-family="monospace" font-size="26" fill="${c2}">// OTS</text>` +
     `</svg>`;
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
@@ -114,7 +114,7 @@ canvas.scale(scale, scale)
       tags: ['Android', 'Canvas', '技术选型'],
       date: '2026-07-20',
       published: true,
-      author: 'vincent',
+      author: 'ots',
     },
     {
       id: 'w2',
@@ -157,7 +157,7 @@ Pages Functions 天然分布式，出题请求就近处理。零服务器成本�
       tags: ['AI 集成', 'Cloudflare', '容错设计'],
       date: '2026-08-02',
       published: true,
-      author: 'vincent',
+      author: 'ots',
     },
     {
       id: 'w3',
@@ -248,9 +248,9 @@ Pages Functions 天然分布式，出题请求就近处理。零服务器成本�
     },
   ],
   settings: {
-    siteTitle: 'otsfolio — Vincent 全栈开发者作品集',
+    siteTitle: 'OTSCUP — 全栈开发者作品集',
     siteDescription:
-      '全栈开发者 Vincent 的作品集与技术博客。移动端原生、Web 全栈、AI 应用集成。',
+      '全栈开发者 OTSCUP 的作品集与技术博客。移动端原生、Web 全栈、AI 应用集成。',
     // 空值表示未设置口令，后台会提示设置
     adminPassHash: '',
     // 自建 D1 评论系统默认配置
@@ -258,5 +258,10 @@ Pages Functions 天然分布式，出题请求就近处理。零服务器成本�
     maxCommentsPerPost: 200,
     maxImagesPerComment: 3,
     maxImageSizeKB: 512,
+    // AI 助手 / 评论通知默认配置（密钥留空，后台填入后生效）
+    aihubKey: '',
+    aiBaseUrl: 'https://aihub.071129.xyz/v1',
+    aiModels: 'tencent/hy3:free,inclusionai/ling-3.0-flash:free,openrouter/free,openai/gpt-oss-20b:free',
+    commentNotifyEnabled: true,
   },
 };

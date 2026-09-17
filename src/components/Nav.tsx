@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { nav } from '../content';
 import { useSite } from '../hooks/useSite';
+import { useTheme } from '../hooks/useTheme';
 
 export default function Nav() {
   const { profile } = useSite();
   const [open, setOpen] = useState(false);
+  const [theme, setTheme] = useTheme();
   const [hash, setHash] = useState(() => {
     const p = window.location.pathname.replace(/^\/+/, '');
     return p ? `/${p}` : (window.location.hash || '#/');
@@ -60,6 +62,17 @@ export default function Nav() {
           ))}
         </nav>
 
+        {/* 主题切换 */}
+        <button
+          type="button"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark')}
+          title={theme === 'dark' ? '深色模式 · 点击切换浅色' : theme === 'light' ? '浅色模式 · 点击切换跟随系统' : '跟随系统 · 点击切换深色'}
+          aria-label="切换主题"
+          className="hidden h-9 w-9 items-center justify-center border border-line text-sm transition-colors hover:border-cyan hover:text-cyan md:flex"
+        >
+          {theme === 'dark' ? '🌙' : theme === 'light' ? '☀️' : '🖥️'}
+        </button>
+
         {/* 移动端汉堡按钮 */}
         <button
           type="button"
@@ -84,6 +97,15 @@ export default function Nav() {
           aria-label="移动导航"
         >
           <ul className="space-y-3">
+            <li>
+              <button
+                type="button"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark')}
+                className="font-mono text-sm uppercase tracking-widest text-muted transition-colors hover:text-cyan"
+              >
+                {theme === 'dark' ? '🌙 深色模式' : theme === 'light' ? '☀️ 浅色模式' : '🖥️ 跟随系统'}
+              </button>
+            </li>
             {items.map((n) => (
               <li key={n.id}>
                 <a
