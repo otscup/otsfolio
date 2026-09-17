@@ -2,21 +2,20 @@
 
 让 Claude Desktop / Cursor / Cherry Studio 等 MCP 客户端直接管理 otscup.com 文章。
 
-## 工具列表（7 个）
+## 两种连接方式
 
-| 工具 | 说明 | 需要密码 |
-|------|------|---------|
-| `list_posts` | 列出所有文章 | ❌ |
-| `get_post` | 获取单篇（按 slug/id） | ❌ |
-| `create_post` | 新建并发布文章 | ✅ |
-| `update_post` | 更新文章字段 | ✅ |
-| `delete_post` | 删除文章 | ✅ |
-| `list_models` | 拉取可用 AI 模型 | ❌ |
-| `get_site_info` | 站点概览 | ❌ |
+| 方式 | 场景 | 配置复杂度 |
+|------|------|-----------|
+| **远程 HTTP**（推荐） | 任何电脑、任何客户端，直接连 URL | ⭐ 最简单 |
+| 本地 stdio | 只在有代码的电脑本地用 | ⭐⭐ 需装依赖 |
 
-## 配置
+## 方式一：远程 HTTP（推荐）
 
-### 1. Claude Desktop
+**URL**: `https://www.otscup.com/api/mcp`
+
+其他电脑直接连这个地址即可，无需装任何依赖。
+
+### Claude Desktop
 
 编辑 `claude_desktop_config.json`：
 - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
@@ -26,17 +25,23 @@
 {
   "mcpServers": {
     "otscup-site": {
-      "command": "node",
-      "args": ["E:/Desktop/portfolio/mcp/server.mjs"],
-      "env": {
-        "OTSCUP_ADMIN_PASS": "Qq.470892084"
+      "url": "https://www.otscup.com/api/mcp",
+      "headers": {
+        "x-admin-hash": "<填入你的 admin-hash>"
       }
     }
   }
 }
 ```
 
-### 2. Cursor
+> `x-admin-hash` = `sha256('cyber-portfolio-v2' + '你的后台密码')`。
+> 用下面命令计算：
+> ```bash
+> python -c "import hashlib;print(hashlib.sha256(('cyber-portfolio-v2'+'你的密码').encode()).hexdigest())"
+> ```
+> 或直接用你的后台密码让 AI 算一下。
+
+### Cursor
 
 编辑 `.cursor/mcp.json`（项目级）或 `~/.cursor/mcp.json`（全局）：
 
@@ -44,65 +49,96 @@
 {
   "mcpServers": {
     "otscup-site": {
-      "command": "node",
-      "args": ["E:/Desktop/portfolio/mcp/server.mjs"],
-      "env": {
-        "OTSCUP_ADMIN_PASS": "Qq.470892084"
+      "url": "https://www.otscup.com/api/mcp",
+      "headers": {
+        "x-admin-hash": "<填入你的 admin-hash>"
       }
     }
   }
 }
 ```
 
-### 3. Cherry Studio / LM Studio 等
+### Cherry Studio / LM Studio
 
 在 MCP 管理页面添加 server：
 - **Name**: `otscup-site`
-- **Command**: `node`
-- **Arguments**: `E:/Desktop/portfolio/mcp/server.mjs`
-- **Environment**: `OTSCUP_ADMIN_PASS=Qq.470892084`
+- **Type**: HTTP / Streamable HTTP
+- **URL**: `https://www.otscup.com/api/mcp`
+- **Header**: `x-admin-hash: <填入你的 admin-hash>`
 
-## 可选环境变量
+### 直接用 curl / HTTP（调试用）
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `OTSCUP_SITE` | `https://www.otscup.com` | 站点地址 |
-| `OTSCUP_ADMIN_PASS` | 空 | 管理员口令（写操作需要） |
+```bash
+# 列出文章（无需鉴权）
+curl -X POST https://www.otscup.com/api/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_posts","arguments":{}}}'
 
-> 不设置 `OTSCUP_ADMIN_PASS` 时，只读工具（list/get/site_info/models）仍可用，写工具会失败。
+# 新建文章（需鉴权）
+curl -X POST https://www.otscup.com/api/mcp \
+  -H 'Content-Type: application/json' \
+  -H 'x-admin-hash: <填入你的 admin-hash>' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"create_post","arguments":{"title":"测试","slug":"test-123","body":"# 内容"}}}'
+```
+
+## 方式二：本地 stdio（备选）
+
+如果远程不可用，可本地跑：
+
+```json
+{
+  "mcpServers": {
+    "otscup-site": {
+      "command": "node",
+      "args": ["E:/Desktop/portfolio/mcp/server.mjs"],
+      "env": { "OTSCUP_ADMIN_PASS": "<你的后台密码>" }
+    }
+  }
+}
+```
+
+## 工具列表（7 个）
+
+| 工具 | 说明 | 需要鉴权 |
+|------|------|---------|
+| `list_posts` | 列出所有文章 | ❌ |
+| `get_post` | 获取单篇（按 slug/id） | ❌ |
+| `create_post` | 新建并发布文章 | ✅ |
+| `update_post` | 更新文章字段 | ✅ |
+| `delete_post` | 删除文章 | ✅ |
+| `list_models` | 拉取可用 AI 模型 | ❌ |
+| `get_site_info` | 站点概览 | ❌ |
 
 ## 在 AI 里的使用示例
-
-对话示例：
 
 ```
 列出 otscup.com 所有文章
 ```
 
 ```
-写一篇关于 "MCP 让 AI 直接管理博客" 的文章，标题用这个，正文 Markdown 格式，标签加 MCP 和 AI
+写一篇关于 "MCP 让 AI 直接管理博客" 的文章，正文 Markdown，标签加 MCP 和 AI
 ```
 
 ```
-更新 slug=multi-model-failover 的文章，把 tags 加上 "MCP"
+更新 slug=multi-model-failover 的文章，tags 加上 "MCP"
 ```
 
 ```
-删掉那篇 slug 是 mcp-test-... 的测试文章
+删掉 slug 是 test-123 的测试文章
 ```
 
-## 本地开发
+## 鉴权说明
 
-```bash
-cd E:/Desktop/portfolio/mcp
-npm install          # 已安装
-node server.mjs      # 启动（stdio 模式，给 MCP 客户端用）
-```
+- **读操作**（list_posts/get_post/list_models/get_site_info）：无需鉴权，任何人可调
+- **写操作**（create/update/delete_post）：必须带 `x-admin-hash` header
+- 哈希算法：`sha256('cyber-portfolio-v2' + 你的后台密码)`
+- 后台密码就是你在后台「设置」→「后台访问口令」里设的那个
 
 ## 技术说明
 
-- **传输方式**: stdio（标准输入输出，MCP 客户端直接 fork 子进程）
-- **SDK**: `@modelcontextprotocol/sdk` 1.30
-- **认证**: 与后台同一密码机制（`sha256('cyber-portfolio-v2' + password)` → `x-admin-hash` header）
-- **数据源**: 直接读写 Cloudflare D1（通过 `/api/content` PUT）
-- **幂等**: `create_post` 检查 slug 唯一；`update_post` 找不到时报错不创建；`delete_post` 找不到时报错不操作
+- **传输方式**: Streamable HTTP（远程）/ stdio（本地）
+- **SDK**: 远程用原生 JSON-RPC 实现（无外部依赖）；本地用 `@modelcontextprotocol/sdk`
+- **部署**: Cloudflare Pages Function，URL `https://www.otscup.com/api/mcp`
+- **数据源**: Cloudflare D1（通过函数直接读写）
+- **幂等**: create 检查 slug 唯一；update/delete 找不到时报错不操作
+- **CORS**: 已开启 `access-control-allow-origin: *`，浏览器端也可调
