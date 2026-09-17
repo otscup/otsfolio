@@ -53,7 +53,7 @@ export default function Projects() {
         </button>
         <button
           type="button"
-          onClick={() => setShowAll(true)}
+          onClick={() => (window.location.hash = '/projects')}
           className={
             'border px-4 py-2 font-mono text-xs transition-colors ' +
             (showAll
@@ -73,10 +73,12 @@ export default function Projects() {
         ) : (
           visible.map((p) => {
           const a = accentMap[p.accent];
+          const slug = p.slug || p.id;
           return (
             <article
               key={p.id}
-              className={`cyber-card hover:-translate-y-1 active:border-cyan/50 active:shadow-neon ${a.hover} flex flex-col p-6 sm:p-7`}
+              onClick={() => (window.location.hash = `/projects/${encodeURIComponent(slug)}`)}
+              className={`cyber-card hover:-translate-y-1 active:border-cyan/50 active:shadow-neon ${a.hover} flex cursor-pointer flex-col p-6 sm:p-7`}
             >
               <div className="flex items-center justify-between">
                 <span

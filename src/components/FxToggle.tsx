@@ -17,7 +17,7 @@ export default function FxToggle() {
       onClick={() => setOn((v) => !v)}
       aria-pressed={on}
       title={on ? '关闭特效' : '开启特效'}
-      className="fixed bottom-4 right-4 z-[60] flex h-9 w-9 items-center justify-center border border-line bg-void/80 font-mono text-xs text-muted backdrop-blur-sm transition-colors hover:border-cyan hover:text-cyan"
+      className="fixed bottom-4 left-4 z-[60] flex h-9 w-9 items-center justify-center border border-line bg-void/80 font-mono text-xs text-muted backdrop-blur-sm transition-colors hover:border-cyan hover:text-cyan"
     >
       {on ? 'FX' : '··'}
     </button>

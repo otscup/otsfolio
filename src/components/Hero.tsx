@@ -13,9 +13,9 @@ export default function Hero() {
 
         <h1
           className="glitch font-display text-5xl font-black leading-none tracking-tight text-cyan neon-text sm:text-7xl lg:text-8xl"
-          data-text="otsfolio"
+          data-text="OTSCUP"
         >
-          otsfolio
+          OTSCUP
         </h1>
 
         <div className="mt-6 flex items-center gap-3">
@@ -34,7 +34,7 @@ export default function Hero() {
         </p>
 
         <div className="mt-10 flex flex-wrap gap-4">
-          <a href="/#projects" className="btn-neon">
+          <a href="/projects" className="btn-neon">
             查看作品
           </a>
           <a

@@ -6,7 +6,13 @@ export default function LatestPosts() {
   const { posts } = useSite();
   const latest = [...posts]
     .filter((p) => p.published)
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => {
+      // 有封面的优先展示（提升视觉吸引力），其次按日期倒序
+      const ca = a.cover ? 1 : 0;
+      const cb = b.cover ? 1 : 0;
+      if (ca !== cb) return cb - ca;
+      return b.date.localeCompare(a.date);
+    })
     .slice(0, 3);
 
   if (latest.length === 0) return null;

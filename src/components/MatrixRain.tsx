@@ -2,13 +2,13 @@ import { useEffect, useRef } from 'react';
 
 const KEY = 'cyber-fx-enabled';
 
-/** 读取/写入特效总开关（localStorage，默认开启） */
+/** 读取/写入特效总开关（localStorage，默认关闭——首次访问不打扰） */
 export function getFxEnabled(): boolean {
   try {
     const v = localStorage.getItem(KEY);
-    return v === null ? true : v === '1';
+    return v === null ? false : v === '1';
   } catch {
-    return true;
+    return false;
   }
 }
 export function setFxEnabled(on: boolean): void {
@@ -88,9 +88,24 @@ export default function MatrixRain() {
     raf = requestAnimationFrame(draw);
 
     const onFxChange = () => {
-      // 用户切回开启时无需重建，draw 循环一直在跑
+      const off = (() => {
+        try {
+          return localStorage.getItem(KEY) === '0';
+        } catch {
+          return false;
+        }
+      })();
+      if (off) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+        canvas.style.opacity = '0';
+      } else {
+        canvas.style.opacity = '0.35';
+        if (!raf) raf = requestAnimationFrame(draw);
+      }
     };
     window.addEventListener('storage', onFxChange);
+    window.addEventListener('fx-change', onFxChange);
 
     return () => {
       cancelAnimationFrame(raf);

@@ -44,11 +44,13 @@ export function useDocumentMeta({ title, description, image, type = 'website' }:
       image ? 'summary_large_image' : 'summary',
     );
 
-    // dataURL 过长，不适合作为分享图
-    if (image && !image.startsWith('data:')) {
-      setMeta('meta[property="og:image"]', 'property', 'og:image', image);
-      setMeta('meta[name="twitter:image"]', 'name', 'twitter:image', image);
-    }
+    // dataURL 过长，不适合作为分享图；空图回退到全站封面，保证社交分享必有预览图
+    const OG_FALLBACK = 'https://www.otscup.com/og-cover.png';
+    const img = image && !image.startsWith('data:') ? image : OG_FALLBACK;
+    setMeta('meta[property="og:image"]', 'property', 'og:image', img);
+    setMeta('meta[name="twitter:image"]', 'name', 'twitter:image', img);
+    setMeta('meta[property="og:image:width"]', 'property', 'og:image:width', '1200');
+    setMeta('meta[property="og:image:height"]', 'property', 'og:image:height', '630');
 
     setMeta('meta[property="og:url"]', 'property', 'og:url', window.location.href);
   }, [title, description, image, type]);

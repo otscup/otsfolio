@@ -1,6 +1,7 @@
 /** 赛博朋克设计系统 —— 唯一配色/动效来源，禁止硬编码颜色 */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -10,7 +11,7 @@ export default {
         cyan: '#00f0ff',        // 主霓虹
         magenta: '#ff00a0',     // 副霓虹
         lime: '#c8ff00',        // 强调/成功
-        muted: '#8a8aae',       // 次级文字（提亮）
+        muted: '#8a8aae',        // 次级文字（提亮）
         line: '#2c2c4e',        // 描边（提亮）
       },
       fontFamily: {

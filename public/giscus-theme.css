@@ -1,78 +1,78 @@
-/*! otsfolio 赛博朋克 Giscus 主题 — Primer 变量覆盖（外链版） */
+/* otsfolio 赛博朋克 Giscus 主题 —— 映射到站点设计 token：
+   void #07070f / surface / cyan #00f0ff / magenta #ff00a0 / 亮灰文字
+   仅作用于 Giscus iframe 内部（背景/文字/按钮/链接/边框）。 */
+
 :root {
-  --color-canvas-default: #0d0d1a;
-  --color-canvas-subtle: #14142e;
-  --color-canvas-inset: #0a0a18;
-  --color-canvas-overlay: #16162e;
-  --color-fg-default: #e6edf3;
-  --color-fg-muted: #aab4d4;
-  --color-fg-subtle: #6e7693;
-  --color-border-default: #2a2a5a;
-  --color-border-muted: #20204a;
-  --color-accent-fg: #00f0ff;
+  --color-canvas-default: rgba(7, 7, 15, 0.55);   /* void，半透明融入站点 */
+  --color-canvas-subtle: rgba(15, 16, 28, 0.75);
+  --color-canvas-inset: rgba(7, 7, 15, 0.85);
+  --color-canvas-overlay: rgba(15, 16, 28, 0.95);
+  --color-fg-default: #cbd5e1;                     /* 亮灰正文 */
+  --color-fg-muted: #64748b;                       /* 静默灰 */
+  --color-border-default: rgba(0, 240, 255, 0.22); /* 青色描边 */
+  --color-border-muted: rgba(0, 240, 255, 0.12);
+  --color-accent-fg: #00f0ff;                       /* 青色强调（链接/激活）*/
   --color-accent-emphasis: #00f0ff;
-  --color-accent-muted: rgba(0, 240, 255, 0.18);
-  --color-btn-text: #e6edf3;
-  --color-btn-bg: #1a1a3a;
-  --color-btn-border: #00f0ff;
-  --color-btn-hover-bg: #232352;
-  --color-btn-hover-border: #00f0ff;
-  --color-btn-primary-text: #0d0d1a;
-  --color-btn-primary-bg: #00f0ff;
-  --color-btn-primary-border: #00f0ff;
-  --color-success-fg: #00f0ff;
-  --color-danger-fg: #ff00a0;
+  --color-accent-subtle: rgba(0, 240, 255, 0.12);
+  --color-accent-muted: rgba(0, 240, 255, 0.35);
+  --color-btn-primary-bg: #ff00a0;                 /* 品红主按钮 */
+  --color-btn-primary-border: #ff00a0;
+  --color-btn-primary-hover-bg: #ff33b3;
+  --color-btn-primary-hover-border: #ff33b3;
+  --color-btn-primary-text: #07070f;
+  --color-btn-bg: rgba(0, 240, 255, 0.06);
+  --color-btn-border: rgba(0, 240, 255, 0.3);
+  --color-btn-hover-bg: rgba(0, 240, 255, 0.14);
+  --color-btn-text: #00f0ff;
+  --color-attention-fg: #ff00a0;
+  --color-attention-subtle: rgba(255, 0, 160, 0.12);
+  --color-danger-fg: #ff4d6d;
+  --color-danger-subtle: rgba(255, 77, 109, 0.12);
+  --color-action-list-item-default-hover-bg: rgba(0, 240, 255, 0.08);
 }
 
-/* 评论卡片：青色霓虹描边 + 辉光 */
-main .gsc-comment-box,
-main .gsc-comment {
-  background: #14142e !important;
-  border: 1px solid #00f0ff !important;
-  border-radius: 12px !important;
-  box-shadow: 0 0 12px rgba(0, 240, 255, 0.25), inset 0 0 8px rgba(0, 240, 255, 0.05) !important;
+/* 评论区内部容器也压暗，贴赛博底 */
+main,
+.giscus,
+.gsc-comments,
+.gsc-comment-box,
+.gsc-reactions,
+.gsc-header {
+  background: transparent !important;
 }
-main .gsc-comment-box-textarea {
-  background: #0a0a18 !important;
-  color: #e6edf3 !important;
-  border: 1px solid #2a2a5a !important;
-  border-radius: 8px !important;
+
+/* 评论输入框：深色 + 青描边 */
+.gsc-comment-box,
+.gsc-comment-box__body,
+textarea {
+  background-color: rgba(7, 7, 15, 0.8) !important;
+  border-color: rgba(0, 240, 255, 0.3) !important;
+  color: #cbd5e1 !important;
 }
-main .gsc-comment-box-textarea:focus {
-  border-color: #00f0ff !important;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4) !important;
-  outline: none !important;
+
+/* 评论卡片：半透明 surface + 青描边 */
+.gsc-comment,
+.gsc-comment__content,
+.gsc-reply {
+  background-color: rgba(15, 16, 28, 0.7) !important;
+  border-color: rgba(0, 240, 255, 0.18) !important;
 }
-main .gsc-comment-author {
+
+/* 头像圆角 + 轻微霓虹辉光感 */
+.gsc-comment-author-avatar img,
+.avatar {
+  border-radius: 6px !important;
+  box-shadow: 0 0 0 1px rgba(0, 240, 255, 0.25);
+}
+
+/* 链接统一青色 */
+a,
+.gsc-comment-author-name,
+.gsc-comment-author-name a {
   color: #00f0ff !important;
-  font-weight: 700;
-  text-shadow: 0 0 6px rgba(0, 240, 255, 0.5) !important;
 }
-main .gsc-comment-content { color: #e6edf3 !important; }
-main .gsc-comment-content a {
-  color: #ff00a0 !important;
-  text-shadow: 0 0 6px rgba(255, 0, 160, 0.4) !important;
-}
-main .gsc-reaction-button {
-  border-color: #2a2a5a !important;
-  color: #e6edf3 !important;
-  border-radius: 8px !important;
-}
-main .gsc-reaction-button:hover {
-  border-color: #00f0ff !important;
-  box-shadow: 0 0 8px rgba(0, 240, 255, 0.35) !important;
-}
-main .gsc-header-text,
-main .gsc-meta-text,
-main .gsc-footer { color: #aab4d4 !important; }
-main .gsc-footer a,
-main .gsc-meta-link { color: #00f0ff !important; }
-main .gsc-login-button,
-main .gsc-login-button-text {
-  background: #00f0ff !important;
-  color: #0d0d1a !important;
-  border-color: #00f0ff !important;
-  border-radius: 8px !important;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4) !important;
-  font-weight: 600;
+
+/* 反应按钮（emoji）hover 品红 */
+.gsc-reaction-button:hover {
+  border-color: rgba(255, 0, 160, 0.5) !important;
 }

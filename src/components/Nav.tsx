@@ -68,7 +68,7 @@ export default function Nav() {
           onClick={() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'system' : 'dark')}
           title={theme === 'dark' ? '深色模式 · 点击切换浅色' : theme === 'light' ? '浅色模式 · 点击切换跟随系统' : '跟随系统 · 点击切换深色'}
           aria-label="切换主题"
-          className="hidden h-9 w-9 items-center justify-center border border-line text-sm transition-colors hover:border-cyan hover:text-cyan md:flex"
+          className="hidden h-9 w-9 items-center justify-center text-sm transition-opacity hover:opacity-70 md:flex"
         >
           {theme === 'dark' ? '🌙' : theme === 'light' ? '☀️' : '🖥️'}
         </button>
