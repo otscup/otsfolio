@@ -1850,8 +1850,10 @@ export default function AdminPanel() {
                         createdAt: Date.now(),
                       };
                       const updated = [...mcpKeys, newKeyEntry];
-                      setState({ ...state, settings: { ...state.settings, mcpKeys: updated } });
-                      pushToCloud(state, state.settings.adminPassHash || '').then((ok) => {
+                      const nextState = { ...state, settings: { ...state.settings, mcpKeys: updated } };
+                      setState(nextState);
+                      saveSite(nextState);
+                      pushToCloud(nextState, state.settings.adminPassHash || '').then((ok) => {
                         setMcpMsg({
                           kind: 'ok',
                           text: ok ? 'Key 已创建并同步到云端' : 'Key 已创建（本地已保存，云端同步失败）',
@@ -1915,8 +1917,10 @@ export default function AdminPanel() {
                           onClick={() => {
                             if (!window.confirm(`确认删除「${k.name}」的 Key？该客户端将无法再写入。`)) return;
                             const updated = mcpKeys.filter((x) => x.id !== k.id);
-                            setState({ ...state, settings: { ...state.settings, mcpKeys: updated } });
-                            pushToCloud(state, state.settings.adminPassHash || '').then(() => {
+                            const nextState = { ...state, settings: { ...state.settings, mcpKeys: updated } };
+                            setState(nextState);
+                            saveSite(nextState);
+                            pushToCloud(nextState, state.settings.adminPassHash || '').then(() => {
                               setMcpMsg({ kind: 'ok', text: `已删除「${k.name}」的 Key` });
                             });
                           }}

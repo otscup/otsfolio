@@ -10,12 +10,17 @@ export default function BlogList() {
     () =>
       posts
         .filter((p) => p.published)
-        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+        .sort((a, b) => {
+          const ca = a.cover ? 1 : 0;
+          const cb = b.cover ? 1 : 0;
+          if (ca !== cb) return cb - ca;
+          return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+        }),
     [posts],
   );
 
-  // 作者分离：默认显示 Hermes（AI 协作）内容，点击「我的文章」才显示 Vincent 本人撰写
-  const [authorView, setAuthorView] = useState<'hermes' | 'vincent'>('hermes');
+  // 作者分离：默认显示 Hermes（AI 协作）内容，点击「我的文章」才显示 OTS 本人撰写
+  const [authorView, setAuthorView] = useState<'hermes' | 'ots'>('hermes');
   const visibleByAuthor = useMemo(
     () => all.filter((p) => (p.author ?? 'hermes') === authorView),
     [all, authorView],
@@ -73,10 +78,10 @@ export default function BlogList() {
         </button>
         <button
           type="button"
-          onClick={() => setAuthorView('vincent')}
+          onClick={() => setAuthorView('ots')}
           className={
             'border px-4 py-2 font-mono text-xs transition-colors ' +
-            (authorView === 'vincent'
+            (authorView === 'ots'
               ? 'border-magenta bg-magenta/10 text-magenta'
               : 'border-line text-muted hover:border-magenta hover:text-magenta')
           }
@@ -131,6 +136,14 @@ export default function BlogList() {
                       aria-label={`阅读文章：${post.title}`}
                     >
                       <article className="cyber-card flex items-center gap-4 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-cyan/40 active:border-cyan/50 active:shadow-neon">
+                        {post.cover && (
+                          <img
+                            src={post.cover}
+                            alt={`${post.title} 封面`}
+                            loading="lazy"
+                            className="h-20 w-28 shrink-0 rounded border border-line object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        )}
                         <div className="min-w-0 flex-1">
                           <h3 className="break-words font-display text-xl font-bold text-slate-100 transition-colors group-hover:text-cyan">
                             {post.title}
