@@ -12,7 +12,7 @@ import type {
 import { autoExcerpt, slugify } from '../markdown';
 import { hashPass, logout } from '../auth';
 import MarkdownEditor from './MarkdownEditor';
-import { loadSite, saveSite, resetSite, exportSite, importSite, newId, pushToCloud } from '../store';
+import { loadSite, saveSite, resetSite, exportSite, importSite, newId, pushToCloud, syncFromCloud } from '../store';
 
 /* ---------- 可复用子组件 ---------- */
 
@@ -642,6 +642,18 @@ function StatsPanel() {
 
 export default function AdminPanel() {
   const [state, setState] = useState<SiteData>(() => loadSite());
+
+  // 挂载时从 D1 拉最新数据，覆盖 localStorage 缓存
+  // 修复：MCP key / 密码在 D1 更新后，刷新/重进 localStorage 是旧的 → key 消失 / 新密码登录失败
+  const [cloudSynced, setCloudSynced] = useState(false);
+  useEffect(() => {
+    syncFromCloud().then((ok) => {
+      if (ok) {
+        setState(loadSite()); // reload from localStorage (now has D1 data)
+      }
+      setCloudSynced(true);
+    });
+  }, []);
   const [activeTab, setActiveTab] = useState<TabKey>('posts');
   const [showSaved, setShowSaved] = useState(false);
   const [coverErrors, setCoverErrors] = useState<Record<string, string>>({});

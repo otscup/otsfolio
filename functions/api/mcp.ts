@@ -42,6 +42,7 @@ const TOOLS = [
         tags: { type: 'array', items: { type: 'string' }, description: '标签数组' },
         excerpt: { type: 'string', description: '摘要（不填则取正文前 80 字）' },
         cover: { type: 'string', description: '封面图 URL 或 data: URI' },
+        notify: { type: 'boolean', description: '发布后自动推送 Telegram 通知（需后台已配置 TG bot）' },
       },
       additionalProperties: false,
     },
@@ -171,15 +172,61 @@ async function executeTool(
           return { content: [{ type: 'text', text: `slug "${args.slug}" 已存在` }], isError: true };
         }
         const id = `auto-${Date.now()}`;
+        const postDate = new Date().toISOString().slice(0, 10);
         data.posts.push({
           id, slug: args.slug, title: args.title,
           excerpt: args.excerpt || args.body.slice(0, 80).replace(/\n/g, ' '),
           cover: args.cover || '', body: args.body,
-          tags: args.tags || [], date: new Date().toISOString().slice(0, 10),
+          tags: args.tags || [], date: postDate,
           published: true, author: 'mcp',
         });
         await writeSiteData(env, data);
-        return { content: [{ type: 'text', text: `文章已创建并发布：${args.title}（slug: ${args.slug}）\nURL: https://www.otscup.com/blog/${args.slug}` }] };
+        const postUrl = `https://www.otscup.com/blog/${args.slug}`;
+
+        // 发文后自动推 TG（notify: true 时）
+        if (args.notify === true) {
+          const token = data.settings?.tgBotToken;
+          let chatIds: string[] = [];
+          if (Array.isArray(data.settings?.tgChatIds)) chatIds = data.settings.tgChatIds.map(String);
+          else if (data.settings?.tgChatId) chatIds = [String(data.settings.tgChatId)];
+
+          if (token && chatIds.length > 0) {
+            // cover 是 data: URI 时纯文字，否则带图
+            const usePhoto = args.cover && !args.cover.startsWith('data:');
+            const text = `📢 新文章发布\n\n${args.title}\n${args.excerpt || ''}\n\n${postUrl}`.slice(0, 4000);
+            const results: { chat: string; ok: boolean; error?: string }[] = [];
+            for (const cid of chatIds) {
+              try {
+                const url = usePhoto
+                  ? `https://api.telegram.org/bot${token}/sendPhoto`
+                  : `https://api.telegram.org/bot${token}/sendMessage`;
+                const payload = usePhoto
+                  ? { chat_id: cid, photo: args.cover, caption: text, parse_mode: 'Markdown' }
+                  : { chat_id: cid, text, parse_mode: 'Markdown' };
+                const tg = await fetch(url, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json; charset=utf-8' },
+                  body: JSON.stringify(payload),
+                });
+                const tgRes = (await tg.json()) as { ok: boolean; description?: string };
+                results.push({ chat: cid, ok: tgRes.ok, error: tgRes.description });
+                if (!tgRes.ok) break; // 第一个失败就停，说明 token/chat 有问题
+              } catch (e) {
+                results.push({ chat: cid, ok: false, error: String(e) });
+                break;
+              }
+            }
+            const allOk = results.every(r => r.ok);
+            const tgStatus = allOk
+              ? `TG 通知已推送（${results.length} 个会话）`
+              : `TG 通知失败：${results.find(r => !r.ok)?.error || 'unknown'}`;
+            return { content: [{ type: 'text', text: `文章已创建并发布：${args.title}\nURL: ${postUrl}\n${tgStatus}` }] };
+          } else {
+            return { content: [{ type: 'text', text: `文章已创建并发布：${args.title}\nURL: ${postUrl}\n⚠️ TG 通知跳过：后台未配置 TG bot token 或 chat id` }] };
+          }
+        }
+
+        return { content: [{ type: 'text', text: `文章已创建并发布：${args.title}（slug: ${args.slug}）\nURL: ${postUrl}` }] };
       }
 
       case 'update_post': {

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { verifyPass, markLoggedIn, hashPass } from '../auth';
-import { loadSite, saveSite } from '../store';
+import { loadSite, saveSite, syncFromCloud } from '../store';
 
 /**
  * 后台登录闸门。
@@ -10,7 +10,13 @@ import { loadSite, saveSite } from '../store';
  *   注：Turnstile 真人验证因国内网络常加载失败，暂不渲染 widget；密钥仍存于设置中。
  */
 export default function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
-  const site = loadSite();
+  const [site, setSite] = useState(() => loadSite());
+  // 挂载时从 D1 拉最新数据，防止 localStorage 缓存的旧 hash 导致新密码登录失败
+  useEffect(() => {
+    syncFromCloud().then((ok) => {
+      if (ok) setSite(loadSite());
+    });
+  }, []);
   const hasPass = site.settings.adminPassHash !== '';
 
   const [pass, setPass] = useState('');
